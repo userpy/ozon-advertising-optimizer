@@ -1,17 +1,11 @@
 x-airflow-common: &airflow-common
   build: .
-  environment: &airflow-common-env
-    AIRFLOW__CORE__EXECUTOR: LocalExecutor
-    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
-    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
-    AIRFLOW_CONN_POSTGRES_DEFAULT: postgresql://airflow:airflow@postgres:5432/airflow
-    DATABASE_URL: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
-    DB_HOST: postgres
-    DB_PORT: "5432"
-    DB_NAME: airflow
-    DB_USER: airflow
-    DB_PASSWORD: airflow
-    PIPELINE_ARTIFACT_DIR: /tmp/optimal_advertising_pressure
+  env_file:
+    - .env
+  environment:
+    DATABASE_URL: "postgresql+psycopg2://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: "postgresql+psycopg2://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+    AIRFLOW_CONN_POSTGRES_DEFAULT: "postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
   volumes:
     - ./dags:/opt/airflow/dags
     - ./db:/opt/airflow/db
@@ -21,7 +15,7 @@ x-airflow-common: &airflow-common
     - ./alembic:/opt/airflow/alembic
     - ./alembic.ini:/opt/airflow/alembic.ini
     - airflow-logs:/opt/airflow/logs
-  user: "${AIRFLOW_UID:-50000}:0"
+  user: "${AIRFLOW_UID}:0"
   depends_on: &airflow-common-depends-on
     postgres:
       condition: service_healthy
@@ -29,26 +23,30 @@ x-airflow-common: &airflow-common
 services:
   postgres:
     image: postgres:16
+    env_file:
+      - .env
     environment:
-      POSTGRES_USER: airflow
-      POSTGRES_PASSWORD: airflow
-      POSTGRES_DB: airflow
+      POSTGRES_USER: "${DB_USER}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD}"
+      POSTGRES_DB: "${DB_NAME}"
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "airflow"]
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 10s
       retries: 5
       start_period: 5s
     ports:
-      - "5432:5432"
+      - "${POSTGRES_HOST_PORT}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
 
   airflow-init:
     <<: *airflow-common
+    user: "0:0"
     entrypoint: /bin/bash
     command:
       - -c
       - |
+        chown -R "$${AIRFLOW_UID}:0" /opt/airflow/logs
         airflow db migrate
         airflow users create \
           --username "$${AIRFLOW_ADMIN_USERNAME:-admin}" \
@@ -67,7 +65,7 @@ services:
     <<: *airflow-common
     command: webserver
     ports:
-      - "8080:8080"
+      - "${AIRFLOW_HOST_PORT}:8080"
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
       interval: 30s

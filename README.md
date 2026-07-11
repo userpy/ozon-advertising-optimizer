@@ -30,6 +30,12 @@ Production-like проект для расчета оптимального ре
 
 ## Quick Start
 
+Создать файл `.env` из примера и при необходимости изменить настройки:
+
+```bash
+cp .env.example .env
+```
+
 Поднять окружение:
 
 ```bash
@@ -54,11 +60,16 @@ docker compose exec airflow-webserver python scripts/seed_postgres.py
 http://localhost:8080
 ```
 
+Порт задается переменной `AIRFLOW_HOST_PORT` в `.env`.
+
 Логин и пароль по умолчанию:
 
 ```text
 admin / admin
 ```
+
+Учетные данные задаются переменными `AIRFLOW_ADMIN_USERNAME` и
+`AIRFLOW_ADMIN_PASSWORD` в `.env`.
 
 Запустить DAG:
 
