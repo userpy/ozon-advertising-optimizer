@@ -73,8 +73,6 @@ http://localhost:8080
 admin / admin
 ```
 
-Учетные данные задаются переменными `AIRFLOW_ADMIN_USERNAME` и
-`AIRFLOW_ADMIN_PASSWORD` в `.env`.
 
 Запустить DAG:
 
