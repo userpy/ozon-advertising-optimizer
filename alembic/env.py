@@ -7,10 +7,11 @@ from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
 
 from alembic import context
-from db.connection import get_database_url
 from db.models import metadata
+from services.settings import Settings
 
 config = context.config
+settings = Settings()
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
@@ -21,7 +22,7 @@ target_metadata = metadata
 def run_migrations_offline() -> None:
     """Run migrations without a database connection."""
     context.configure(
-        url=get_database_url(),
+        url=settings.database_url,
         target_metadata=target_metadata,
         version_table="ozon_optimizer_alembic_version",
         literal_binds=True,
@@ -34,7 +35,7 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     """Run migrations with a database connection."""
-    config.set_main_option("sqlalchemy.url", get_database_url())
+    config.set_main_option("sqlalchemy.url", settings.database_url)
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",

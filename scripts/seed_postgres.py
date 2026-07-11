@@ -7,10 +7,11 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import MetaData, create_engine, text
+from sqlalchemy import create_engine, text
 
-from db.connection import get_database_url
+from db.models import SOURCE_TABLES
 from db.queries import DEFAULT_CUSTOMER_KEY
+from services.settings import Settings
 
 LOGGER = logging.getLogger(__name__)
 COMPANY_NAME = "Fuji Test Seller"
@@ -18,24 +19,22 @@ PROJECT_INDEX = "fuji-oz-2232506"
 
 
 def main() -> None:
-    """Create source tables and insert deterministic sample data."""
+    """Replace source table contents with deterministic sample data."""
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
-    engine = create_engine(get_database_url(), pool_pre_ping=True, future=True)
+    engine = create_engine(
+        Settings().database_url,
+        pool_pre_ping=True,
+        future=True,
+    )
     with engine.begin() as connection:
-        LOGGER.info("Creating source tables")
-        for statement in _source_table_ddl():
-            connection.execute(text(statement))
-
         LOGGER.info("Cleaning old seed data")
         connection.execute(text(_truncate_statement()))
         connection.execute(text(_truncate_results_statement()))
 
         LOGGER.info("Inserting seed data")
-        metadata = MetaData()
-        metadata.reflect(bind=connection, schema="public", only=_source_table_names())
         for table_name, rows in _build_seed_payload().items():
             if rows:
-                table = metadata.tables[f"public.{table_name}"]
+                table = SOURCE_TABLES[table_name]
                 connection.execute(table.insert(), rows)
 
     LOGGER.info("Seed completed")
@@ -43,96 +42,7 @@ def main() -> None:
 
 def _source_table_names() -> list[str]:
     """Return all source table names used by the pipeline."""
-    return [
-        "oz_category",
-        "oz_product",
-        "oz_marketing_stat_rk",
-        "oz_prices",
-        "cost_price_data_test",
-        "company_register_data",
-        "oz_voronka_sales",
-    ]
-
-
-def _source_table_ddl() -> list[str]:
-    """Return source table DDL statements."""
-    return [
-        """
-        CREATE TABLE IF NOT EXISTS public.oz_category (
-            type_id bigint PRIMARY KEY,
-            category_1_name text NOT NULL,
-            category_2_name text NOT NULL,
-            type_name text NOT NULL
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS public.oz_product (
-            sku bigint PRIMARY KEY,
-            offer_id text NOT NULL,
-            type_id bigint NOT NULL,
-            customer_key text NOT NULL
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS public.oz_marketing_stat_rk (
-            models_sku bigint NOT NULL,
-            date_period date NOT NULL,
-            expences numeric(18, 4) NOT NULL,
-            revenue numeric(18, 4) NOT NULL,
-            date_load timestamp NOT NULL,
-            customer_key text NOT NULL
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS public.oz_prices (
-            product_id bigint NOT NULL,
-            offer_id text NOT NULL,
-            price numeric(18, 4) NOT NULL,
-            created_at timestamp NOT NULL,
-            customer_key text NOT NULL
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS public.cost_price_data_test (
-            marketplace_product_id bigint NOT NULL,
-            sku text NOT NULL,
-            self_cost numeric(18, 4) NOT NULL,
-            date_load timestamp NOT NULL,
-            customer_key text NOT NULL
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS public.company_register_data (
-            customer_key text PRIMARY KEY,
-            project_index text NOT NULL
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS public.oz_voronka_sales (
-            id bigint PRIMARY KEY,
-            date_load timestamp NOT NULL,
-            customer_key text NOT NULL,
-            company_name text NOT NULL,
-            name text NOT NULL,
-            sku bigint NOT NULL,
-            date_period date NOT NULL,
-            revenue numeric(18, 4) NOT NULL,
-            ordered_units bigint NOT NULL,
-            position_category numeric(10, 4) NOT NULL,
-            hits_view bigint NOT NULL,
-            hits_view_pdp bigint NOT NULL,
-            hits_view_search bigint NOT NULL,
-            hits_tocart bigint NOT NULL,
-            hits_tocart_pdp bigint NOT NULL,
-            session_view bigint NOT NULL,
-            session_view_pdp bigint NOT NULL,
-            session_view_search bigint NOT NULL,
-            conv_tocart numeric(10, 4) NOT NULL,
-            conv_tocart_pdp numeric(10, 4) NOT NULL,
-            conv_tocart_search numeric(10, 4) NOT NULL
-        )
-        """,
-    ]
+    return list(SOURCE_TABLES)
 
 
 def _truncate_statement() -> str:

@@ -17,10 +17,9 @@ from services import predict as predict_service
 from services import preprocessing as preprocessing_service
 from services import profit as profit_service
 from services import save as save_service
+from services.settings import Settings
 
-ARTIFACT_DIR = Path(
-    os.getenv("PIPELINE_ARTIFACT_DIR", "/tmp/optimal_advertising_pressure"),
-)
+SETTINGS = Settings()
 
 
 @dag(
@@ -163,7 +162,7 @@ def _artifact_path(name: str) -> Path:
     """Build a deterministic artifact path for the current DAG run."""
     run_id = os.getenv("AIRFLOW_CTX_DAG_RUN_ID", "local")
     safe_run_id = re.sub(r"[^a-zA-Z0-9_.-]+", "_", run_id)
-    return ARTIFACT_DIR / safe_run_id / f"{name}.csv"
+    return SETTINGS.artifact_dir / safe_run_id / f"{name}.csv"
 
 
 optimal_advertising_pressure_dag()
