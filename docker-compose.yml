@@ -46,7 +46,6 @@ services:
     command:
       - -c
       - |
-        chown -R "$${AIRFLOW_UID}:0" /opt/airflow/logs
         airflow db migrate
         airflow users create \
           --username "$${AIRFLOW_ADMIN_USERNAME:-admin}" \
@@ -58,6 +57,7 @@ services:
         airflow connections delete postgres_default || true
         airflow connections add postgres_default \
           --conn-uri "$${AIRFLOW_CONN_POSTGRES_DEFAULT}"
+        chown -R "$${AIRFLOW_UID}:0" /opt/airflow/logs
     depends_on:
       <<: *airflow-common-depends-on
 

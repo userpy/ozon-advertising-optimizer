@@ -39,8 +39,13 @@ cp .env.example .env
 Поднять окружение:
 
 ```bash
-docker compose up -d
+docker compose up -d --build
+docker compose ps
 ```
+
+На первом запуске нужно дождаться, когда `airflow-init` завершится с кодом `0`,
+`postgres` и `airflow-webserver` перейдут в состояние `healthy`, а
+`airflow-scheduler` и `airflow-triggerer` — в состояние `Up`.
 
 Применить миграции:
 
